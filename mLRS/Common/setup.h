@@ -545,6 +545,18 @@ void setup_sanitize_config(uint8_t config_id)
 
     SANITIZE(Rx.MavlinkSystemID, 5, SETUP_RX_MAVLINK_SYSTEM_ID, 0);
 
+    //-- Dynamic Power
+
+    SANITIZE(Tx[config_id].DynPower, DYNPOWER_NUM, DYNPOWER_OFF, DYNPOWER_OFF);
+    if (Setup.Tx[config_id].DynPowerMax >= RFPOWER_LIST_NUM) Setup.Tx[config_id].DynPowerMax = RFPOWER_LIST_NUM - 1;
+    if (Setup.Tx[config_id].DynPowerMin >= RFPOWER_LIST_NUM) Setup.Tx[config_id].DynPowerMin = 0;
+    if (Setup.Tx[config_id].DynPowerMin > Setup.Tx[config_id].DynPowerMax) Setup.Tx[config_id].DynPowerMin = Setup.Tx[config_id].DynPowerMax;
+
+    SANITIZE(Rx.DynPower, DYNPOWER_NUM, DYNPOWER_OFF, DYNPOWER_OFF);
+    if (Setup.Rx.DynPowerMax >= RFPOWER_LIST_NUM) Setup.Rx.DynPowerMax = RFPOWER_LIST_NUM - 1;
+    if (Setup.Rx.DynPowerMin >= RFPOWER_LIST_NUM) Setup.Rx.DynPowerMin = 0;
+    if (Setup.Rx.DynPowerMin > Setup.Rx.DynPowerMax) Setup.Rx.DynPowerMin = Setup.Rx.DynPowerMax;
+
     //-- Spares and deprecated options:
     // should be 0xFF'ed
 

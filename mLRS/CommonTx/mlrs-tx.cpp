@@ -726,6 +726,10 @@ RESTARTCONTROLLER
     fhss.Init(&Config.Fhss, &Config.Fhss2);
     fhss.Start();
     rfpower.Init();
+    dynpower.Init(
+        Setup.Tx[Config.ConfigId].DynPower == DYNPOWER_ON,
+        Setup.Tx[Config.ConfigId].DynPowerMin,
+        Setup.Tx[Config.ConfigId].DynPowerMax);
 
     sx.SetRfFrequency(fhss.GetCurrFreq());
     sx2.SetRfFrequency(fhss.GetCurrFreq2());
@@ -1065,9 +1069,16 @@ IF_SX2(
         DECc(tick_1hz_commensurate, Config.frame_rate_hz);
         if (!tick_1hz_commensurate) {
             stats.Update1Hz();
+            if (connected()) {
+                dynpower.Tick(
+                    stats.received_rssi,
+                    stats.GetReceivedLQ_rc(),
+                    SX_OR_SX2(sx.ReceiverSensitivity_dbm(), sx2.ReceiverSensitivity_dbm()),
+                    rfpower);
+            }
         }
         stats.Next();
-        if (!connected()) stats.Clear();
+        if (!connected()) { stats.Clear(); dynpower.SetToMax(rfpower); }
 
         if (Setup.Tx[Config.ConfigId].Buzzer == BUZZER_LOST_PACKETS && connect_occured_once && !bind.IsInBind()) {
             if (!valid_frame_received) buzzer.BeepLP();
@@ -1215,7 +1226,9 @@ IF_IN(
     if (rc_data_updated) {
         rc_data_updated = false;
         channelOrder.SetAndApply(&rcData, Setup.Tx[Config.ConfigId].ChannelOrder);
-        rfpower.Set(&rcData, Setup.Tx[Config.ConfigId].PowerSwitchChannel, Setup.Tx[Config.ConfigId].Power);
+        if (Setup.Tx[Config.ConfigId].DynPower != DYNPOWER_ON) {
+            rfpower.Set(&rcData, Setup.Tx[Config.ConfigId].PowerSwitchChannel, Setup.Tx[Config.ConfigId].Power);
+        }
     }
 
     if (isInTimeGuard || link_state == LINK_STATE_TRANSMIT_SEND) return; // don't do anything else in this time slot, is important!

@@ -25,6 +25,7 @@
 #include "fan.h"
 #include "leds.h"
 #include "rf_power.h"
+#include "dynpower.h"
 
 
 //-------------------------------------------------------
@@ -226,6 +227,7 @@ tBuzzer buzzer;
 tFan fan;
 tLEDs leds;
 tRfPower rfpower;
+tDynPower dynpower;
 
 
 //-------------------------------------------------------

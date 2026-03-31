@@ -99,7 +99,10 @@
   X( Setup.Tx[0].SendRadioStatus,   LIST, "Tx Snd RadioStat", "TX_SND_RADIOSTAT", 0,0,0,"", "off,1 Hz", MSK_ALL )\
   X( Setup.Tx[0].MavlinkComponent,  LIST, "Tx Mav Component", "TX_MAV_COMPONENT", 0,0,0,"", "off,enabled", MSK_ALL )\
   X( Setup.Tx[0].PowerSwitchChannel,LIST, "Tx Power Sw Ch",   "TX_POWER_SW_CH",   0,0,0,"", "off,5,6,7,8,9,10,11,12,13,14,15,16", MSK_ALL )\
-  X( Setup.Tx[0].Buzzer,            LIST, "Tx Buzzer",        "TX_BUZZER",        0,0,0,"", "off,LP,rxLQ", SETUP_MSK_TX_BUZZER )
+  X( Setup.Tx[0].Buzzer,            LIST, "Tx Buzzer",        "TX_BUZZER",        0,0,0,"", "off,LP,rxLQ", SETUP_MSK_TX_BUZZER )\
+  X( Setup.Tx[0].DynPower,          LIST, "Tx Dyn Power",     "TX_DYN_POWER",     0,0,0,"", "off,on", MSK_ALL )\
+  X( Setup.Tx[0].DynPowerMin,       LIST, "Tx Dyn Pwr Min",   "TX_DYN_PWR_MIN",   0,0,0,"", SETUP_OPT_TX_POWER, MSK_ALL )\
+  X( Setup.Tx[0].DynPowerMax,       LIST, "Tx Dyn Pwr Max",   "TX_DYN_PWR_MAX",   0,0,0,"", SETUP_OPT_TX_POWER, MSK_ALL )
 
 #define SETUP_PARAMETER_LIST_TX_ESP \
   X( Setup.Tx[0].WifiProtocol,      LIST, "Tx Wifi Protocol", "TX_WIFI_PROT",     0,0,0,"", "TCP,UDP,BT,UDP STA,BLE,ESPNOW", SETUP_MSK_TX_WIFIPROT )\
@@ -127,6 +130,9 @@
   X( Setup.Rx.OutRssiChannelMode,   LIST, "Rx Out Rssi Ch",   "RX_OUT_RSSI_CH",   0,0,0,"", "off,5,6,7,8,9,10,11,12,13,14,15,16", MSK_ALL )\
   X( Setup.Rx.OutLqChannelMode,     LIST, "Rx Out LQ Ch",     "RX_OUT_LQ_CH",     0,0,0,"", "off,5,6,7,8,9,10,11,12,13,14,15,16", MSK_ALL )\
   X( Setup.Rx.PowerSwitchChannel,   LIST, "Rx Power Sw Ch",   "RX_POWER_SW_CH",   0,0,0,"", "off,5,6,7,8,9,10,11,12,13,14,15,16", MSK_ALL )\
+  X( Setup.Rx.DynPower,             LIST, "Rx Dyn Power",     "RX_DYN_POWER",     0,0,0,"", "off,on", MSK_ALL )\
+  X( Setup.Rx.DynPowerMin,          LIST, "Rx Dyn Pwr Min",   "RX_DYN_PWR_MIN",   0,0,0,"", SETUP_OPT_RX_POWER, MSK_ALL )\
+  X( Setup.Rx.DynPowerMax,          LIST, "Rx Dyn Pwr Max",   "RX_DYN_PWR_MAX",   0,0,0,"", SETUP_OPT_RX_POWER, MSK_ALL )\
   \
   X( Setup.Rx.FailsafeOutChannelValues_Ch1_Ch12[0],  INT8, "Rx FS Ch1", "RX_FS_CH1", 0, -120, 120, "%", "",0 )\
   X( Setup.Rx.FailsafeOutChannelValues_Ch1_Ch12[1],  INT8, "Rx FS Ch2", "RX_FS_CH2", 0, -120, 120, "%", "",0 )\

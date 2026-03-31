@@ -555,6 +555,10 @@ RESTARTCONTROLLER
     fhss.Init(&Config.Fhss, &Config.Fhss2);
     fhss.Start();
     rfpower.Init();
+    dynpower.Init(
+        Setup.Rx.DynPower == DYNPOWER_ON,
+        Setup.Rx.DynPowerMin,
+        Setup.Rx.DynPowerMax);
 
     sx.SetRfFrequency(fhss.GetCurrFreq());
     sx2.SetRfFrequency(fhss.GetCurrFreq2());
@@ -883,9 +887,16 @@ dbg.puts(s8toBCD_s(stats.last_rssi2));*/
         DECc(tick_1hz_commensurate, Config.frame_rate_hz);
         if (!tick_1hz_commensurate) {
             stats.Update1Hz();
+            if (connected()) {
+                dynpower.Tick(
+                    stats.GetLastRssi(),
+                    stats.GetLQ_rc(),
+                    SX_OR_SX2(sx.ReceiverSensitivity_dbm(), sx2.ReceiverSensitivity_dbm()),
+                    rfpower);
+            }
         }
         stats.Next();
-        if (!connected()) stats.Clear();
+        if (!connected()) { stats.Clear(); dynpower.SetToMax(rfpower); }
 
         if (connect_state == CONNECT_STATE_LISTEN) {
             link_task_reset();
@@ -934,7 +945,9 @@ dbg.puts(s8toBCD_s(stats.last_rssi2));*/
             mavlink.SendRcData(out.GetRcDataPtr(), frame_missed, false);
             msp.SendRcData(out.GetRcDataPtr(), frame_missed, false);
             dronecan.SendRcData(out.GetRcDataPtr(), false);
-            rfpower.Set(&rcData, Setup.Rx.PowerSwitchChannel, Setup.Rx.Power);
+            if (Setup.Rx.DynPower != DYNPOWER_ON) {
+                rfpower.Set(&rcData, Setup.Rx.PowerSwitchChannel, Setup.Rx.Power);
+            }
         } else {
             if (connect_occured_once) {
                 // generally output a signal only if we had a connection at least once
