@@ -82,28 +82,34 @@ ST_DIR,GNU_DIR = '', ''
 
 # do this only when called from main context
 if __name__ == "__main__":
-    st_root = os.path.join("C:/",'ST')
-    if os.name == 'posix': # install paths are os dependent
-        st_root = os.path.join("/opt",'st')
+    if not os.getenv("MLRS_GCC_DIR"):
+        st_root = os.path.join("C:/",'ST')
+        if os.name == 'posix': # install paths are os dependent
+            st_root = os.path.join("/opt",'st')
 
-    ST_DIR,GNU_DIR = findSTM32CubeIDEGnuTools(st_root)
-    if os.getenv("MLRS_ST_DIR"):
-        ST_DIR = os.getenv("MLRS_ST_DIR")
-    if os.getenv("MLRS_GNU_DIR"):
-        GNU_DIR = os.getenv("MLRS_GNU_DIR")
+        ST_DIR,GNU_DIR = findSTM32CubeIDEGnuTools(st_root)
+        if os.getenv("MLRS_ST_DIR"):
+            ST_DIR = os.getenv("MLRS_ST_DIR")
+        if os.getenv("MLRS_GNU_DIR"):
+            GNU_DIR = os.getenv("MLRS_GNU_DIR")
 
-    if ST_DIR == '' or GNU_DIR == '' or not os.path.exists(os.path.join(ST_DIR,GNU_DIR)):
-        print('ERROR: gnu-tools not found!')
-        exit(1)
+        if ST_DIR == '' or GNU_DIR == '' or not os.path.exists(os.path.join(ST_DIR,GNU_DIR)):
+            print('ERROR: gnu-tools not found!')
+            exit(1)
 
-    print('STM32CubeIDE found in:', ST_DIR)
-    print('gnu-tools found in:', GNU_DIR)
+        print('STM32CubeIDE found in:', ST_DIR)
+        print('gnu-tools found in:', GNU_DIR)
+    else:
+        print('Using MLRS_GCC_DIR:', os.getenv("MLRS_GCC_DIR"))
     print('------------------------------------------------------------')
 
 
 #-- GCC preliminaries
 
-GCC_DIR = os.path.join(ST_DIR,GNU_DIR,'tools','bin')
+if os.getenv("MLRS_GCC_DIR"):
+    GCC_DIR = os.getenv("MLRS_GCC_DIR")
+else:
+    GCC_DIR = os.path.join(ST_DIR,GNU_DIR,'tools','bin')
 
 # we need to modify the PATH so that the correct toolchain/compiler is used
 # why does sys.path.insert(0,xxx) not work?
