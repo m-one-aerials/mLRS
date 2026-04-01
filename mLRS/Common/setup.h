@@ -560,12 +560,12 @@ void setup_sanitize_config(uint8_t config_id)
     //-- Auto Mode
 
     SANITIZE(Tx[config_id].AutoMode, AUTOMODE_NUM, AUTOMODE_OFF, AUTOMODE_OFF);
-    if (Setup.Tx[config_id].AutoModeDist >= AUTOMODE_DIST_NUM) Setup.Tx[config_id].AutoModeDist = AUTOMODE_DIST_1000M;
 
     //-- Spares and deprecated options:
     // should be 0xFF'ed
 
     Setup.Tx[config_id].__spare1 = 0xFF;
+    Setup.Tx[config_id].__spare2 = 0xFF;
     Setup.Rx.__spare1 = 0xFF;
     Setup.Rx.__spare2 = 0xFF;
 

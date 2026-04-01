@@ -80,8 +80,6 @@ class tTxMavlink
     uint8_t getc(void);
     void flush(void);
 
-    float GetDistanceToHome(void);
-
   private:
     void send_msg_fifo_link_out(fmav_message_t* const msg);
     void handle_msg_serial_out(fmav_message_t* const msg);
@@ -120,14 +118,6 @@ class tTxMavlink
 
     // keep info on vehicle
     tTxVehicle vehicle;
-
-    // Auto Mode: position tracking for distance calculation
-    int32_t vehicle_lat;   // degrees * 1e7
-    int32_t vehicle_lon;
-    int32_t home_lat;
-    int32_t home_lon;
-    bool vehicle_pos_received;
-    bool home_pos_received;
 
     // MAVLink packet link quality
     bool msg_seq_initialized;
@@ -203,11 +193,6 @@ void tTxMavlink::Init(tSerialBase* const _serialport, tSerialBase* const _mbridg
 
     msg_seq_initialized = false;
     msg_seq_last = 0;
-
-    vehicle_lat = vehicle_lon = 0;
-    home_lat = home_lon = 0;
-    vehicle_pos_received = false;
-    home_pos_received = false;
 
     task_pending_mask = 0;
     task_pending_delay_ms = 0; // 0 means delay is disabled
@@ -546,20 +531,6 @@ void tTxMavlink::handle_msg_serial_out(fmav_message_t* const msg)
         // this is special, handling is by vehicle class, but needs to be related to passthrough class
         vehicle.handle_param_value(msg);
         }break;
-    case FASTMAVLINK_MSG_ID_GLOBAL_POSITION_INT: {
-        fmav_global_position_int_t payload;
-        fmav_msg_global_position_int_decode(&payload, msg);
-        vehicle_lat = payload.lat;
-        vehicle_lon = payload.lon;
-        vehicle_pos_received = true;
-        }break;
-    case FASTMAVLINK_MSG_ID_HOME_POSITION: {
-        fmav_home_position_t payload;
-        fmav_msg_home_position_decode(&payload, msg);
-        home_lat = payload.latitude;
-        home_lon = payload.longitude;
-        home_pos_received = true;
-        }break;
     }
 
     // calculate MAVLink packet link quality from seq field, for stream from autopilot only
@@ -569,24 +540,6 @@ void tTxMavlink::handle_msg_serial_out(fmav_message_t* const msg)
     }
     msg_seq_initialized = true;
     msg_seq_last = msg->seq;
-}
-
-
-float tTxMavlink::GetDistanceToHome(void)
-{
-    if (!vehicle_pos_received || !home_pos_received) return -1.0f;
-
-    const float DEG2RAD = 1.745329252E-02f;
-    float lon1 = (float)home_lon * 1.0E-7f * DEG2RAD;
-    float lat1 = (float)home_lat * 1.0E-7f * DEG2RAD;
-    float lon2 = (float)vehicle_lon * 1.0E-7f * DEG2RAD;
-    float lat2 = (float)vehicle_lat * 1.0E-7f * DEG2RAD;
-
-    float sin_dlat_half = sinf((lat2 - lat1) * 0.5f);
-    float sin_dlon_half = sinf((lon2 - lon1) * 0.5f);
-    float a = sin_dlat_half * sin_dlat_half +
-              sin_dlon_half * sin_dlon_half * cosf(lat1) * cosf(lat2);
-    return 6371.0E+3f * 2.0f * asinf(sqrtf(a));
 }
 
 

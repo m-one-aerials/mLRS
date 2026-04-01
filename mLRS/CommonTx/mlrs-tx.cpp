@@ -337,7 +337,7 @@ uint8_t link_rx1_status;
 uint8_t link_rx2_status;
 
 
-//-- Auto Mode (live distance-based mode switch)
+//-- Auto Mode (live arming-based mode switch)
 
 uint8_t automode_original_mode;
 bool automode_is_switched;
@@ -345,7 +345,6 @@ uint8_t automode_debounce_cnt;
 uint8_t automode_pending_mode;
 bool automode_switch_pending;
 #define AUTOMODE_DEBOUNCE  3
-const uint16_t automode_dist_list[] = { 500, 1000, 1500, 2000, 3000, 5000, 10000 };
 
 
 void automode_apply_switch(uint8_t new_mode)
@@ -1117,24 +1116,22 @@ IF_SX2(
                     rfpower);
             }
 
-            // Auto Mode: distance-based live mode switch
+            // Auto Mode: arming-based live mode switch
             // Retry sending SET_MODE if previous attempt couldn't get link_task
             if (automode_switch_pending && link_task_free()) {
                 link_task_set(LINK_TASK_TX_SET_MODE);
             }
             if (Setup.Tx[Config.ConfigId].AutoMode == AUTOMODE_ON && connected() && !automode_switch_pending) {
-                float dist = mavlink.GetDistanceToHome();
-                if (dist >= 0.0f) {
-                    uint16_t thresh = automode_dist_list[Setup.Tx[Config.ConfigId].AutoModeDist];
-                    uint16_t hyst = thresh * 80 / 100;
-
+                uint8_t vstate = mavlink.VehicleState();
+                if (vstate != UINT8_MAX) { // vehicle detected
+                    bool is_armed = (vstate >= 1);
                     bool should_switch = false;
                     uint8_t target_mode = automode_original_mode;
 
-                    if (!automode_is_switched && dist > (float)thresh && automode_original_mode != MODE_19HZ) {
+                    if (is_armed && !automode_is_switched && automode_original_mode != MODE_19HZ) {
                         target_mode = MODE_19HZ;
                         should_switch = true;
-                    } else if (automode_is_switched && dist < (float)hyst) {
+                    } else if (!is_armed && automode_is_switched) {
                         target_mode = automode_original_mode;
                         should_switch = true;
                     }
