@@ -208,7 +208,21 @@ typedef enum {
     FRAME_CMD_SET_RX_PARAMS,            // tx -> rx, set parameters -> response with RX_SETUPDATA
     FRAME_CMD_STORE_RX_PARAMS,          // tx -> rx, store parameters, reboots
     FRAME_CMD_GET_RX_SETUPDATA_WRELOAD, // tx -> rx, reload parameters -> response with RX_SETUPDATA
+
+    // live mode switch commands (no restart needed)
+    FRAME_CMD_SET_MODE = 40,            // tx -> rx, switch to mode X on next frame
+    FRAME_CMD_SET_MODE_ACK,             // rx -> tx, acknowledged, will switch
 } FRAME_CMD_ENUM;
+
+
+// send from Tx for live mode switch
+PACKED(
+typedef struct
+{
+    uint8_t cmd;
+    uint8_t mode;       // target MODE_ENUM value
+    uint8_t spare[2];
+}) tTxCmdFrameSetMode; // 4 bytes
 
 
 // Rx Parameter structure

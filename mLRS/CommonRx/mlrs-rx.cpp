@@ -246,6 +246,11 @@ void link_task_reset(void)
 }
 
 
+// Auto Mode: live mode switch state (RX side)
+uint8_t automode_rx_pending_mode;
+bool automode_rx_switch_pending;
+
+
 void process_received_txcmdframe(tTxFrame* const frame)
 {
 tCmdFrameHeader* head = (tCmdFrameHeader*)(frame->payload);
@@ -269,6 +274,12 @@ tCmdFrameHeader* head = (tCmdFrameHeader*)(frame->payload);
         // request to send setup data, trigger sending RX_SETUPDATA in next transmission
         link_task_set(LINK_TASK_RX_SEND_RX_SETUPDATA);
         break;
+    case FRAME_CMD_SET_MODE: {
+        tTxCmdFrameSetMode* set_mode = (tTxCmdFrameSetMode*)(frame->payload);
+        automode_rx_pending_mode = set_mode->mode;
+        automode_rx_switch_pending = true;
+        link_task_set(LINK_TASK_RX_SEND_MODE_ACK);
+        break; }
     }
 }
 
@@ -280,6 +291,11 @@ void pack_rxcmdframe(tRxFrame* const frame, tFrameStats* const frame_stats)
         // send rx setup data
         pack_rxcmdframe_rxsetupdata(frame, frame_stats);
         break;
+    case LINK_TASK_RX_SEND_MODE_ACK: {
+        tCmdFrameHeader ack = {};
+        ack.cmd = FRAME_CMD_SET_MODE_ACK;
+        _pack_rxframe_w_type(frame, FRAME_TYPE_TX_RX_CMD, frame_stats, (uint8_t*)&ack, sizeof(ack));
+        break; }
     }
 }
 
@@ -573,6 +589,7 @@ RESTARTCONTROLLER
     link_rx1_status = link_rx2_status = RX_STATUS_NONE;
     link_tx_status = TX_STATUS_NONE;
     link_task_init();
+    automode_rx_switch_pending = false;
     doPostReceive2_cnt = 0;
     doPostReceive2 = false;
     frame_missed = false;
@@ -637,6 +654,15 @@ INITCONTROLLER_END
 
     switch (link_state) {
     case LINK_STATE_RECEIVE:
+        // Auto Mode: apply live mode switch after ACK was transmitted
+        if (automode_rx_switch_pending) {
+            automode_rx_switch_pending = false;
+            configure_mode(automode_rx_pending_mode, Config.FrequencyBand);
+            sx.ResetToLoraConfiguration(&Config.Sx);
+            sx2.ResetToLoraConfiguration(&Config.Sx2);
+            fhss.Init(&Config.Fhss, &Config.Fhss2);
+            fhss.Start();
+        }
         if (connect_state >= CONNECT_STATE_SYNC) { // we hop only if not in listen
             fhss.HopToNext();
         }

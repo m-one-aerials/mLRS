@@ -102,7 +102,9 @@
   X( Setup.Tx[0].Buzzer,            LIST, "Tx Buzzer",        "TX_BUZZER",        0,0,0,"", "off,LP,rxLQ", SETUP_MSK_TX_BUZZER )\
   X( Setup.Tx[0].DynPower,          LIST, "Tx Dyn Power",     "TX_DYN_POWER",     0,0,0,"", "off,on", MSK_ALL )\
   X( Setup.Tx[0].DynPowerMin,       LIST, "Tx Dyn Pwr Min",   "TX_DYN_PWR_MIN",   0,0,0,"", SETUP_OPT_TX_POWER, MSK_ALL )\
-  X( Setup.Tx[0].DynPowerMax,       LIST, "Tx Dyn Pwr Max",   "TX_DYN_PWR_MAX",   0,0,0,"", SETUP_OPT_TX_POWER, MSK_ALL )
+  X( Setup.Tx[0].DynPowerMax,       LIST, "Tx Dyn Pwr Max",   "TX_DYN_PWR_MAX",   0,0,0,"", SETUP_OPT_TX_POWER, MSK_ALL )\
+  X( Setup.Tx[0].AutoMode,          LIST, "Tx Auto Mode",     "TX_AUTO_MODE",     0,0,0,"", "off,on", MSK_ALL )\
+  X( Setup.Tx[0].AutoModeDist,      LIST, "Tx Auto Dist",     "TX_AUTO_DIST",     0,0,0,"", "500m,1000m,1500m,2000m,3000m,5000m,10000m", MSK_ALL )
 
 #define SETUP_PARAMETER_LIST_TX_ESP \
   X( Setup.Tx[0].WifiProtocol,      LIST, "Tx Wifi Protocol", "TX_WIFI_PROT",     0,0,0,"", "TCP,UDP,BT,UDP STA,BLE,ESPNOW", SETUP_MSK_TX_WIFIPROT )\

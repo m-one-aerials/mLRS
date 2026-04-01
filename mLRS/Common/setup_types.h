@@ -251,6 +251,25 @@ typedef enum {
 
 
 typedef enum {
+    AUTOMODE_OFF = 0,
+    AUTOMODE_ON,
+    AUTOMODE_NUM,
+} AUTOMODE_ENUM;
+
+
+typedef enum {
+    AUTOMODE_DIST_500M = 0,
+    AUTOMODE_DIST_1000M,
+    AUTOMODE_DIST_1500M,
+    AUTOMODE_DIST_2000M,
+    AUTOMODE_DIST_3000M,
+    AUTOMODE_DIST_5000M,
+    AUTOMODE_DIST_10000M,
+    AUTOMODE_DIST_NUM,
+} AUTOMODE_DIST_ENUM;
+
+
+typedef enum {
     OUT_RSSI_LQ_CHANNEL_OFF = 0,
     OUT_RSSI_LQ_CHANNEL_CH5,
     OUT_RSSI_LQ_CHANNEL_CH6,
@@ -367,7 +386,7 @@ typedef struct
     uint8_t __spare1;
     uint8_t SendRadioStatus;
     uint8_t Buzzer;
-    uint8_t __spare2;
+    uint8_t AutoModeDist;
     uint8_t MavlinkComponent;
     uint8_t PowerSwitchChannel;
     uint8_t WifiProtocol;
@@ -377,7 +396,7 @@ typedef struct
     uint8_t DynPower;
     uint8_t DynPowerMin;
     uint8_t DynPowerMax;
-    uint8_t spare[1];
+    uint8_t AutoMode;
 } tTxSetup; // 20 bytes
 
 

@@ -337,6 +337,30 @@ uint8_t link_rx1_status;
 uint8_t link_rx2_status;
 
 
+//-- Auto Mode (live distance-based mode switch)
+
+uint8_t automode_original_mode;
+bool automode_is_switched;
+uint8_t automode_debounce_cnt;
+uint8_t automode_pending_mode;
+bool automode_switch_pending;
+#define AUTOMODE_DEBOUNCE  3
+const uint16_t automode_dist_list[] = { 500, 1000, 1500, 2000, 3000, 5000, 10000 };
+
+
+void automode_apply_switch(uint8_t new_mode)
+{
+    automode_is_switched = (new_mode != automode_original_mode);
+    automode_switch_pending = false;
+
+    configure_mode(new_mode, Config.FrequencyBand);
+    sx.ResetToLoraConfiguration(&Config.Sx);
+    sx2.ResetToLoraConfiguration(&Config.Sx2);
+    fhss.Init(&Config.Fhss, &Config.Fhss2);
+    fhss.Start();
+}
+
+
 //-- Tx/Rx cmd frame handling
 
 uint8_t link_task;
@@ -426,6 +450,10 @@ tCmdFrameHeader* head = (tCmdFrameHeader*)(frame->payload);
         mbridge.Unlock();
 #endif
         break;
+    case FRAME_CMD_SET_MODE_ACK:
+        link_task_reset();
+        automode_apply_switch(automode_pending_mode);
+        break;
     }
 }
 
@@ -446,6 +474,13 @@ void pack_txcmdframe(tTxFrame* const frame, tFrameStats* const frame_stats, tRcD
         pack_txcmdframe_cmd(frame, frame_stats, rc, FRAME_CMD_STORE_RX_PARAMS);
         transmit_frame_type = TRANSMIT_FRAME_TYPE_NORMAL;
         break;
+    case LINK_TASK_TX_SET_MODE: {
+        tTxCmdFrameSetMode set_mode = {};
+        set_mode.cmd = FRAME_CMD_SET_MODE;
+        set_mode.mode = automode_pending_mode;
+        _pack_txframe_w_type(frame, FRAME_TYPE_TX_RX_CMD, frame_stats, rc,
+                             (uint8_t*)&set_mode, sizeof(set_mode));
+        break; }
     }
 }
 
@@ -747,6 +782,11 @@ RESTARTCONTROLLER
     link_tx_status = TX_STATUS_NONE;
     link_task_init();
     link_task_set(LINK_TASK_TX_GET_RX_SETUPDATA); // we start with wanting to get rx setup data
+
+    automode_original_mode = Setup.Common[Config.ConfigId].Mode;
+    automode_is_switched = false;
+    automode_debounce_cnt = 0;
+    automode_switch_pending = false;
 
     stats.Init(Config.LQAveragingPeriod, Config.frame_rate_hz, Config.frame_rate_ms);
     rdiversity.Init();
@@ -1075,6 +1115,44 @@ IF_SX2(
                     stats.GetReceivedLQ_rc(),
                     SX_OR_SX2(sx.ReceiverSensitivity_dbm(), sx2.ReceiverSensitivity_dbm()),
                     rfpower);
+            }
+
+            // Auto Mode: distance-based live mode switch
+            // Retry sending SET_MODE if previous attempt couldn't get link_task
+            if (automode_switch_pending && link_task_free()) {
+                link_task_set(LINK_TASK_TX_SET_MODE);
+            }
+            if (Setup.Tx[Config.ConfigId].AutoMode == AUTOMODE_ON && connected() && !automode_switch_pending) {
+                float dist = mavlink.GetDistanceToHome();
+                if (dist >= 0.0f) {
+                    uint16_t thresh = automode_dist_list[Setup.Tx[Config.ConfigId].AutoModeDist];
+                    uint16_t hyst = thresh * 80 / 100;
+
+                    bool should_switch = false;
+                    uint8_t target_mode = automode_original_mode;
+
+                    if (!automode_is_switched && dist > (float)thresh && automode_original_mode != MODE_19HZ) {
+                        target_mode = MODE_19HZ;
+                        should_switch = true;
+                    } else if (automode_is_switched && dist < (float)hyst) {
+                        target_mode = automode_original_mode;
+                        should_switch = true;
+                    }
+
+                    if (should_switch) {
+                        automode_debounce_cnt++;
+                        if (automode_debounce_cnt >= AUTOMODE_DEBOUNCE) {
+                            automode_debounce_cnt = 0;
+                            automode_pending_mode = target_mode;
+                            automode_switch_pending = true;
+                            if (link_task_free()) {
+                                link_task_set(LINK_TASK_TX_SET_MODE);
+                            }
+                        }
+                    } else {
+                        automode_debounce_cnt = 0;
+                    }
+                }
             }
         }
         stats.Next();
