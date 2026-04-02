@@ -337,6 +337,11 @@ uint8_t link_rx1_status;
 uint8_t link_rx2_status;
 
 
+//-- Power reporting
+
+uint8_t rx_power_index;  // RX's current power level, reported via frame header
+
+
 //-- Tx/Rx cmd frame handling
 
 uint8_t link_task;
@@ -502,6 +507,9 @@ uint8_t payload_len = 0;
 if (!Config.IsDualBand && (fhss1_curr_i != fhss2_curr_i)) while(1){} // must not happen, catch it
 
     frame_stats.LQ_serial = stats.GetLQ_serial();
+    frame_stats.power_index = (RFPOWER_LIST_NUM > 1) ?
+        (rfpower.GetCurrentIdx() * 7 + (RFPOWER_LIST_NUM - 1) / 2) / (RFPOWER_LIST_NUM - 1) : 0;
+    frame_stats.power_req = 0;
 
     if (transmit_frame_type == TRANSMIT_FRAME_TYPE_NORMAL) {
         pack_txframe(&txFrame, &frame_stats, &rcData, payload, payload_len);
@@ -520,6 +528,10 @@ void process_received_frame(bool do_payload, tRxFrame* const frame)
     stats.received_rssi = rssi_i8_from_u7(frame->status.rssi_u7);
     stats.received_LQ_rc = frame->status.LQ_rc;
     stats.received_LQ_serial = frame->status.LQ_serial;
+    // Denormalize RX power_index (0-7) to local range for display
+    rx_power_index = (RFPOWER_LIST_NUM > 1) ?
+        (frame->status.power_index * (RFPOWER_LIST_NUM - 1) + 3) / 7 : 0;
+    if (rx_power_index >= RFPOWER_LIST_NUM) rx_power_index = RFPOWER_LIST_NUM - 1;
 
     if (!do_payload) {
         return;
@@ -726,6 +738,8 @@ RESTARTCONTROLLER
     fhss.Init(&Config.Fhss, &Config.Fhss2);
     fhss.Start();
     rfpower.Init();
+    dynpower.Init(Setup.Tx[Config.ConfigId].DynPower == DYNPOWER_ON);
+    rx_power_index = 0;
 
     sx.SetRfFrequency(fhss.GetCurrFreq());
     sx2.SetRfFrequency(fhss.GetCurrFreq2());
@@ -1065,9 +1079,16 @@ IF_SX2(
         DECc(tick_1hz_commensurate, Config.frame_rate_hz);
         if (!tick_1hz_commensurate) {
             stats.Update1Hz();
+            if (connected()) {
+                dynpower.Tick(
+                    stats.received_rssi,
+                    stats.GetReceivedLQ_rc(),
+                    SX_OR_SX2(sx.ReceiverSensitivity_dbm(), sx2.ReceiverSensitivity_dbm()),
+                    rfpower);
+            }
         }
         stats.Next();
-        if (!connected()) stats.Clear();
+        if (!connected()) { stats.Clear(); dynpower.SetToMax(rfpower); }
 
         if (Setup.Tx[Config.ConfigId].Buzzer == BUZZER_LOST_PACKETS && connect_occured_once && !bind.IsInBind()) {
             if (!valid_frame_received) buzzer.BeepLP();
@@ -1215,7 +1236,9 @@ IF_IN(
     if (rc_data_updated) {
         rc_data_updated = false;
         channelOrder.SetAndApply(&rcData, Setup.Tx[Config.ConfigId].ChannelOrder);
-        rfpower.Set(&rcData, Setup.Tx[Config.ConfigId].PowerSwitchChannel, Setup.Tx[Config.ConfigId].Power);
+        if (Setup.Tx[Config.ConfigId].DynPower != DYNPOWER_ON) {
+            rfpower.Set(&rcData, Setup.Tx[Config.ConfigId].PowerSwitchChannel, Setup.Tx[Config.ConfigId].Power);
+        }
     }
 
     if (isInTimeGuard || link_state == LINK_STATE_TRANSMIT_SEND) return; // don't do anything else in this time slot, is important!

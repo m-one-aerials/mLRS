@@ -46,6 +46,9 @@ typedef struct
     // not stats but needed
     uint8_t tx_fhss_index_band;
     uint8_t tx_fhss_index;
+    // power reporting
+    uint8_t power_index;
+    uint8_t power_req; // TX only: request RX to increase power
 } tFrameStats;
 
 
@@ -61,14 +64,15 @@ typedef struct
 {
     uint32_t seq_no : 3;
     uint32_t ack : 1;
-    uint32_t frame_type : 4;
+    uint32_t frame_type : 2;
+    uint32_t power_index : 3;  // TX's current power level index
+    uint32_t power_req : 1;    // TX requests RX to increase power
     uint32_t antenna : 1;
     uint32_t rssi_u7 : 7;
     uint32_t fhss_index_band : 1; // fhss index is for band 0 or 1
     uint32_t fhss_index : 6; // older versions have set that field to 63
     uint32_t LQ_serial : 7;
     uint32_t transmit_antenna : 1;
-    uint32_t spare : 2;
     uint32_t payload_len : 7;
 }) tTxFrameStatus; // 5 bytes
 
@@ -78,13 +82,14 @@ typedef struct
 {
     uint32_t seq_no : 3;
     uint32_t ack : 1;
-    uint32_t frame_type : 4;
+    uint32_t frame_type : 2;
+    uint32_t power_index : 3;  // RX's current power level index
+    uint32_t spare : 1;
     uint32_t antenna : 1;
     uint32_t rssi_u7 : 7;
     uint32_t LQ_rc : 7; // available only for Rx->Tx frame, not for Tx->Rx
     uint32_t LQ_serial : 7;
     uint32_t transmit_antenna : 1;
-    uint32_t spare : 2;
     uint32_t payload_len : 7;
 }) tRxFrameStatus; // 5 bytes
 

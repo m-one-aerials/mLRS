@@ -330,6 +330,8 @@ uint8_t payload_len = 0;
     frame_stats.rssi = stats.GetLastRssi();
     frame_stats.LQ_rc = stats.GetLQ_rc();
     frame_stats.LQ_serial = stats.GetLQ_serial();
+    frame_stats.power_index = (RFPOWER_LIST_NUM > 1) ?
+        (rfpower.GetCurrentIdx() * 7 + (RFPOWER_LIST_NUM - 1) / 2) / (RFPOWER_LIST_NUM - 1) : 0;
 
     static bool rxFrame_valid = false; // just for now
     if (get_fresh_payload) {
@@ -366,6 +368,15 @@ void process_received_frame(bool do_payload, tTxFrame* const frame)
     stats.received_fhss_index = frame->status.fhss_index;
 
     stats.received_LQ_serial = frame->status.LQ_serial;
+
+    // Mirror TX power level — TX controls both sides
+    // power_index is normalized 0-7, denormalize to local range
+    {
+        uint8_t idx = (RFPOWER_LIST_NUM > 1) ?
+            (frame->status.power_index * (RFPOWER_LIST_NUM - 1) + 3) / 7 : 0;
+        if (idx >= RFPOWER_LIST_NUM) idx = RFPOWER_LIST_NUM - 1;
+        rfpower.Set(idx);
+    }
 
     // copy rc1 data
     if (!do_payload) {
@@ -885,7 +896,7 @@ dbg.puts(s8toBCD_s(stats.last_rssi2));*/
             stats.Update1Hz();
         }
         stats.Next();
-        if (!connected()) stats.Clear();
+        if (!connected()) { stats.Clear(); }
 
         if (connect_state == CONNECT_STATE_LISTEN) {
             link_task_reset();
@@ -934,7 +945,6 @@ dbg.puts(s8toBCD_s(stats.last_rssi2));*/
             mavlink.SendRcData(out.GetRcDataPtr(), frame_missed, false);
             msp.SendRcData(out.GetRcDataPtr(), frame_missed, false);
             dronecan.SendRcData(out.GetRcDataPtr(), false);
-            rfpower.Set(&rcData, Setup.Rx.PowerSwitchChannel, Setup.Rx.Power);
         } else {
             if (connect_occured_once) {
                 // generally output a signal only if we had a connection at least once

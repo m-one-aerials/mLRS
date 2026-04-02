@@ -27,6 +27,7 @@ extern tSetup Setup;
 extern tGlobalConfig Config;
 extern tTxInfo info;
 extern tTasks tasks;
+extern uint8_t rx_power_index;
 
 
 //-------------------------------------------------------
@@ -647,7 +648,11 @@ void tTxCli::stream(void)
             puts(u16toBCD_s(stats.bytes_transmitted.GetBytesPerSec()));
             puts(", ");
             puts(u16toBCD_s(stats.bytes_received.GetBytesPerSec()));
-            putsn(";");
+            puts("; Tx:");
+            puts(u16toBCD_s(rfpower_list[rfpower.GetCurrentIdx()].mW));
+            puts(" Rx:");
+            puts(u16toBCD_s(rfpower_list[rx_power_index].mW));
+            putsn("mW");
         }
     }
 }

@@ -21,6 +21,7 @@ class tRfPower
     void Update(void);
     void Set(tRcData* const rc, uint8_t power_switch_channel, uint8_t power);
     void Set(uint8_t power);
+    uint8_t GetCurrentIdx(void) { return rfpower_current_idx; }
 
   private:
     uint8_t rfpower_current_idx;

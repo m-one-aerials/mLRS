@@ -545,6 +545,10 @@ void setup_sanitize_config(uint8_t config_id)
 
     SANITIZE(Rx.MavlinkSystemID, 5, SETUP_RX_MAVLINK_SYSTEM_ID, 0);
 
+    //-- Dynamic Power
+
+    SANITIZE(Tx[config_id].DynPower, DYNPOWER_NUM, DYNPOWER_OFF, DYNPOWER_OFF);
+
     //-- Spares and deprecated options:
     // should be 0xFF'ed
 

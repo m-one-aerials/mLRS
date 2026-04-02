@@ -58,6 +58,8 @@ uint16_t crc;
     frame->status.fhss_index_band = frame_stats->tx_fhss_index_band;
     frame->status.fhss_index = frame_stats->tx_fhss_index;
     frame->status.LQ_serial = frame_stats->LQ_serial;
+    frame->status.power_index = frame_stats->power_index;
+    frame->status.power_req = frame_stats->power_req;
     frame->status.payload_len = payload_len;
 
     // pack rc data
@@ -185,6 +187,7 @@ uint16_t crc;
     frame->status.rssi_u7 = rssi_u7_from_i8(frame_stats->rssi);
     frame->status.LQ_rc = frame_stats->LQ_rc;
     frame->status.LQ_serial = frame_stats->LQ_serial;
+    frame->status.power_index = frame_stats->power_index;
     // keep !! frame->status.payload_len = payload_len;
 
     fmav_crc_init(&crc);
@@ -215,6 +218,7 @@ uint16_t crc;
     frame->status.rssi_u7 = rssi_u7_from_i8(frame_stats->rssi);
     frame->status.LQ_rc = frame_stats->LQ_rc;
     frame->status.LQ_serial = frame_stats->LQ_serial;
+    frame->status.power_index = frame_stats->power_index;
     frame->status.payload_len = payload_len;
 
     for (uint8_t i = 0; i < payload_len; i++) {

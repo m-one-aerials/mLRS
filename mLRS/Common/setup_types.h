@@ -244,6 +244,13 @@ typedef enum {
 
 
 typedef enum {
+    DYNPOWER_OFF = 0,
+    DYNPOWER_ON,
+    DYNPOWER_NUM,
+} DYNPOWER_ENUM;
+
+
+typedef enum {
     OUT_RSSI_LQ_CHANNEL_OFF = 0,
     OUT_RSSI_LQ_CHANNEL_CH5,
     OUT_RSSI_LQ_CHANNEL_CH6,
@@ -367,7 +374,8 @@ typedef struct
     uint8_t WifiChannel;
     uint8_t WifiPower;
 
-    uint8_t spare[4];
+    uint8_t DynPower;
+    uint8_t spare[3];
 } tTxSetup; // 20 bytes
 
 
