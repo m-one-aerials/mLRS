@@ -20,9 +20,33 @@ import sys
 
 
 #-- installation dependent
-# TODO: effort at finding this automatically
 
-PIO_DIR = os.path.join("C:/",'Users','Olli','.platformio','penv','Scripts')
+def findPlatformIO():
+    if os.getenv("MLRS_PIO_DIR"):
+        return os.getenv("MLRS_PIO_DIR")
+    if os.name == 'posix':
+        # Linux/macOS: check common locations
+        candidates = [
+            os.path.expanduser('~/.platformio/penv/bin'),
+            os.path.expanduser('~/.local/bin'),
+            '/usr/local/bin',
+            '/usr/bin',
+        ]
+        for d in candidates:
+            if os.path.isfile(os.path.join(d, 'platformio')):
+                return d
+    else:
+        # Windows: check common locations
+        candidates = [
+            os.path.join(os.path.expanduser('~'), '.platformio', 'penv', 'Scripts'),
+            os.path.join("C:/", 'Users', os.getenv('USERNAME', ''), '.platformio', 'penv', 'Scripts'),
+        ]
+        for d in candidates:
+            if os.path.isfile(os.path.join(d, 'platformio.exe')):
+                return d
+    return ''
+
+PIO_DIR = findPlatformIO()
 
 
 
@@ -63,8 +87,7 @@ def mlrs_set_version():
     else:
         print('----------------------------------------')
         print('ERROR: VERSIONONLYSTR not found')
-        os.system('pause')
-        exit()
+        exit(1)
 
 
 def mlrs_set_branch_hash(version_str):
@@ -130,8 +153,9 @@ def printError(txt):
 #--------------------------------------------------
 
 def mlrs_esp_compile_all():
-    pio_run = os.path.join(PIO_DIR,'platformio.exe') + ' run --project-dir ' + MLRS_PROJECT_DIR
-    
+    pio_exe = 'platformio' if os.name == 'posix' else 'platformio.exe'
+    pio_run = os.path.join(PIO_DIR, pio_exe) + ' run --project-dir ' + MLRS_PROJECT_DIR
+
     print('Full Clean All')
     os.system(pio_run+' --target fullclean')
     print('Build All')
@@ -176,6 +200,12 @@ if __name__ == "__main__":
             if sys.argv[cmd_pos+1] != '':
                 cmdline_version = sys.argv[cmd_pos+1]
 
+    if PIO_DIR == '':
+        print('ERROR: PlatformIO not found! Set MLRS_PIO_DIR environment variable.')
+        exit(1)
+    print('PlatformIO found in:', PIO_DIR)
+    print('------------------------------------------------------------')
+
     if cmdline_version == '':
         mlrs_set_version()
         mlrs_set_branch_hash(VERSIONONLYSTR)
@@ -186,4 +216,7 @@ if __name__ == "__main__":
     mlrs_esp_copy_all_bin()
 
     if not cmdline_nopause:
-        os.system("pause")
+        if os.name == 'posix':
+            input("Press Enter to continue...")
+        else:
+            os.system("pause")
