@@ -48,7 +48,7 @@ typedef struct
     uint8_t tx_fhss_index;
     // power reporting
     uint8_t power_index;
-    uint8_t power_req; // TX only: request RX to increase power
+    uint8_t dynpower_active; // TX only: 1 = mirror power_index on RX; 0 = RX uses local setting
 } tFrameStats;
 
 
@@ -65,8 +65,8 @@ typedef struct
     uint32_t seq_no : 3;
     uint32_t ack : 1;
     uint32_t frame_type : 2;
-    uint32_t power_index : 3;  // TX's current power level index
-    uint32_t power_req : 1;    // TX requests RX to increase power
+    uint32_t power_index : 3;        // TX's current power level index (normalized 0-7)
+    uint32_t dynpower_active : 1;    // 1: TX dictates power, RX mirrors power_index; 0: RX uses local Power/PowerSwitchChannel
     uint32_t antenna : 1;
     uint32_t rssi_u7 : 7;
     uint32_t fhss_index_band : 1; // fhss index is for band 0 or 1

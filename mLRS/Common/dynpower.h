@@ -80,10 +80,6 @@ class tDynPower
         }
     }
 
-    // Called when power was changed externally (e.g. power_req from TX)
-    // Resets hold counter to prevent immediate power-down
-    void HoldAfterExternalChange(void) { _hold_cnt = DYNPOWER_HOLD_TICKS; }
-
     // Called when disconnected: set to max power for reconnection
     void SetToMax(tRfPower& rfpower)
     {

@@ -59,7 +59,7 @@ uint16_t crc;
     frame->status.fhss_index = frame_stats->tx_fhss_index;
     frame->status.LQ_serial = frame_stats->LQ_serial;
     frame->status.power_index = frame_stats->power_index;
-    frame->status.power_req = frame_stats->power_req;
+    frame->status.dynpower_active = frame_stats->dynpower_active;
     frame->status.payload_len = payload_len;
 
     // pack rc data

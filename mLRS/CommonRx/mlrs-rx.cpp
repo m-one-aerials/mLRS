@@ -220,6 +220,8 @@ uint8_t link_task;
 uint8_t transmit_frame_type;
 bool doParamsStore;
 
+bool tx_dynpower_active = false; // tracks whether TX is currently dictating power; updated from each received frame
+
 
 void link_task_init(void)
 {
@@ -369,9 +371,11 @@ void process_received_frame(bool do_payload, tTxFrame* const frame)
 
     stats.received_LQ_serial = frame->status.LQ_serial;
 
-    // Mirror TX power level — TX controls both sides
-    // power_index is normalized 0-7, denormalize to local range
-    {
+    // Track TX's dynpower state and mirror its power level only when TX is dictating.
+    // When TX has DynPower OFF, the RX falls back to its own Power/PowerSwitchChannel
+    // (applied in the doPostReceive2 path below).
+    tx_dynpower_active = (frame->status.dynpower_active != 0);
+    if (tx_dynpower_active) {
         uint8_t idx = (RFPOWER_LIST_NUM > 1) ?
             (frame->status.power_index * (RFPOWER_LIST_NUM - 1) + 3) / 7 : 0;
         if (idx >= RFPOWER_LIST_NUM) idx = RFPOWER_LIST_NUM - 1;
@@ -945,6 +949,9 @@ dbg.puts(s8toBCD_s(stats.last_rssi2));*/
             mavlink.SendRcData(out.GetRcDataPtr(), frame_missed, false);
             msp.SendRcData(out.GetRcDataPtr(), frame_missed, false);
             dronecan.SendRcData(out.GetRcDataPtr(), false);
+            if (!tx_dynpower_active) {
+                rfpower.Set(&rcData, Setup.Rx.PowerSwitchChannel, Setup.Rx.Power);
+            }
         } else {
             if (connect_occured_once) {
                 // generally output a signal only if we had a connection at least once

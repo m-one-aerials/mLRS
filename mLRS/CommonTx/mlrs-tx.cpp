@@ -509,7 +509,7 @@ if (!Config.IsDualBand && (fhss1_curr_i != fhss2_curr_i)) while(1){} // must not
     frame_stats.LQ_serial = stats.GetLQ_serial();
     frame_stats.power_index = (RFPOWER_LIST_NUM > 1) ?
         (rfpower.GetCurrentIdx() * 7 + (RFPOWER_LIST_NUM - 1) / 2) / (RFPOWER_LIST_NUM - 1) : 0;
-    frame_stats.power_req = 0;
+    frame_stats.dynpower_active = (Setup.Tx[Config.ConfigId].DynPower == DYNPOWER_ON) ? 1 : 0;
 
     if (transmit_frame_type == TRANSMIT_FRAME_TYPE_NORMAL) {
         pack_txframe(&txFrame, &frame_stats, &rcData, payload, payload_len);
@@ -1088,7 +1088,19 @@ IF_SX2(
             }
         }
         stats.Next();
-        if (!connected()) { stats.Clear(); dynpower.SetToMax(rfpower); }
+        // On the connected -> disconnected edge, after at least one prior connection,
+        // hand control to dynpower so it boosts to max for faster reconnection.
+        // Before the first connect, behaviour is untouched: the static rfpower path runs
+        // through rc_data_updated. SetToMax is a no-op when DynPower is OFF.
+        {
+            static bool was_connected = false;
+            bool now_connected = connected();
+            if (!now_connected) {
+                stats.Clear();
+                if (was_connected) dynpower.SetToMax(rfpower);
+            }
+            was_connected = now_connected;
+        }
 
         if (Setup.Tx[Config.ConfigId].Buzzer == BUZZER_LOST_PACKETS && connect_occured_once && !bind.IsInBind()) {
             if (!valid_frame_received) buzzer.BeepLP();
@@ -1236,7 +1248,9 @@ IF_IN(
     if (rc_data_updated) {
         rc_data_updated = false;
         channelOrder.SetAndApply(&rcData, Setup.Tx[Config.ConfigId].ChannelOrder);
-        if (Setup.Tx[Config.ConfigId].DynPower != DYNPOWER_ON) {
+        // DynPower only takes over once a first connection has been established;
+        // before that, fall back to the static Power / PowerSwitchChannel path.
+        if (Setup.Tx[Config.ConfigId].DynPower != DYNPOWER_ON || !connect_occured_once) {
             rfpower.Set(&rcData, Setup.Tx[Config.ConfigId].PowerSwitchChannel, Setup.Tx[Config.ConfigId].Power);
         }
     }
