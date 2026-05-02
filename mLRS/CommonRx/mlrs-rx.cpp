@@ -942,6 +942,25 @@ dbg.puts(s8toBCD_s(stats.last_rssi2));*/
     if (doPostReceive2) {
         doPostReceive2 = false;
 
+        // Disconnect-boost edge: if TX was running DynPower and we had at least one prior
+        // connection, boost to max once on the connected -> disconnected transition. Stays
+        // at max while disconnected; cleared on reconnect so normal mirroring / local power
+        // resumes.
+        static bool was_connected = false;
+        static bool disconnect_boosted = false;
+        {
+            bool now_connected = connected();
+            if (now_connected && !was_connected) {
+                disconnect_boosted = false;
+            } else if (!now_connected && was_connected) {
+                if (tx_dynpower_active && connect_occured_once) {
+                    rfpower.Set(RFPOWER_LIST_NUM - 1);
+                    disconnect_boosted = true;
+                }
+            }
+            was_connected = now_connected;
+        }
+
         out.SetChannelOrder(Setup.Rx.ChannelOrder);
         if (connected()) {
             out.SendRcData(&rcData, frame_missed, false, stats.GetLastRssi(), stats.GetLQ_rc());
@@ -961,7 +980,9 @@ dbg.puts(s8toBCD_s(stats.last_rssi2));*/
                 msp.SendRcData(out.GetRcDataPtr(), true, true);
                 dronecan.SendRcData(out.GetRcDataPtr(), true);
             }
-            rfpower.Set(Setup.Rx.Power); // force to Setup Power
+            if (!disconnect_boosted) {
+                rfpower.Set(Setup.Rx.Power); // force to Setup Power
+            }
         }
     }//end of if(doPostReceive2)
 
