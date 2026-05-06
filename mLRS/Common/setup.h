@@ -47,6 +47,14 @@ void setup_configure_metadata(void)
   #else
     #error Unknown Frequencyband !
   #endif
+#elif defined DEVICE_HAS_DUAL_LR11xx
+  // DUALBAND-CAPABLE 2.4 GHz & 868/915 MHz with 2x LR1121
+  #if defined FREQUENCY_BAND_2P4_GHZ && defined FREQUENCY_BAND_915_MHZ_FCC && defined FREQUENCY_BAND_868_MHZ
+    SetupMetaData.FrequencyBand_allowed_mask = 0b11000111; // 2.4 GHz, 915 FCC, 868, 915+2.4, 868+2.4
+    #define FREQUENCY_BAND_DEFAULT  SETUP_FREQUENCY_BAND_868_MHZ
+  #else
+    #error Unknown Frequencyband !
+  #endif
 //** multi band
 #elif defined FREQUENCY_BAND_2P4_GHZ && defined FREQUENCY_BAND_915_MHZ_FCC && defined FREQUENCY_BAND_868_MHZ
     // MULTIBAND 2.4 GHz & 868/915 MHz
@@ -100,6 +108,10 @@ void setup_configure_metadata(void)
     // DUALBAND 868/915 MHz & 433 MHz
     SetupMetaData.Mode_allowed_mask = 0b000110; // 31 Hz, 19 Hz
     #define MODE_DEFAULT  MODE_31HZ
+#elif defined DEVICE_HAS_DUAL_LR11xx
+    // DUALBAND-CAPABLE 2x LR1121 — restricted in setup_sanitize_config based on actual FrequencyBand
+    SetupMetaData.Mode_allowed_mask = 0b110111; // 50 Hz, 31 Hz, 19 Hz, FSK, 19 Hz 7x
+    #define MODE_DEFAULT  MODE_31HZ
 #elif defined DEVICE_HAS_SX128x
     SetupMetaData.Mode_allowed_mask = 0b001111; // 50 Hz, 31 Hz, 19 Hz, FLRC
     #define MODE_DEFAULT  MODE_50HZ
@@ -141,6 +153,9 @@ void setup_configure_metadata(void)
     SetupMetaData.Tx_Diversity_allowed_mask = 0b00111; // will be adjusted below
 #elif defined DEVICE_HAS_DUAL_SX126x_SX126x
     SetupMetaData.Tx_Diversity_allowed_mask = 0b00001; // only enabled, not editable
+#elif defined DEVICE_HAS_DUAL_LR11xx
+    // depends on FrequencyBand; adjusted in setup_sanitize_config()
+    SetupMetaData.Tx_Diversity_allowed_mask = 0b00111;
 #elif defined DEVICE_HAS_DIVERSITY
     SetupMetaData.Tx_Diversity_allowed_mask = 0b11111; // all
 #elif defined DEVICE_HAS_DIVERSITY_SINGLE_SPI
@@ -209,6 +224,9 @@ void setup_configure_metadata(void)
     SetupMetaData.Rx_Diversity_allowed_mask = 0b00111; // will be adjusted below
 #elif defined DEVICE_HAS_DUAL_SX126x_SX126x
     SetupMetaData.Rx_Diversity_allowed_mask = 0b00001; // only enabled, not editable
+#elif defined DEVICE_HAS_DUAL_LR11xx
+    // depends on FrequencyBand; adjusted in setup_sanitize_config()
+    SetupMetaData.Rx_Diversity_allowed_mask = 0b00111;
 #elif defined DEVICE_HAS_DIVERSITY
     SetupMetaData.Rx_Diversity_allowed_mask = 0b11111; // all
 #elif defined DEVICE_HAS_DIVERSITY_SINGLE_SPI
@@ -395,6 +413,29 @@ void setup_sanitize_config(uint8_t config_id)
         SetupMetaData.Mode_allowed_mask &= 0b010110; // filter down to 31 Hz, 19 Hz, FSK
         SetupMetaData.Tx_Diversity_allowed_mask = 0b00001; // diversity / both antenna
         SetupMetaData.Rx_Diversity_allowed_mask = 0b00001; // diversity / both antenna
+        break;
+    default:
+        while(1){} // must not happen, should have been resolved in setup_sanitize()
+    }
+#elif defined DEVICE_HAS_DUAL_LR11xx
+    // DUALBAND-CAPABLE hardware (2x LR1121); adjust allowed modes/diversity per actual FrequencyBand
+    switch (Setup.Common[config_id].FrequencyBand) {
+    case SETUP_FREQUENCY_BAND_2P4_GHZ:
+        SetupMetaData.Mode_allowed_mask &= 0b000111; // 50 Hz, 31 Hz, 19 Hz
+        SetupMetaData.Tx_Diversity_allowed_mask = 0b00100; // antenna2 only (sx2 = 2.4)
+        SetupMetaData.Rx_Diversity_allowed_mask = 0b00100;
+        break;
+    case SETUP_FREQUENCY_BAND_915_MHZ_FCC:
+    case SETUP_FREQUENCY_BAND_868_MHZ:
+        SetupMetaData.Mode_allowed_mask &= 0b110110; // 31 Hz, 19 Hz, FSK, 19 Hz 7x
+        SetupMetaData.Tx_Diversity_allowed_mask = 0b00010; // antenna1 only (sx = sub-GHz)
+        SetupMetaData.Rx_Diversity_allowed_mask = 0b00010;
+        break;
+    case SETUP_FREQUENCY_DUAL_BAND_915_MHZ_2P4_GHZ:
+    case SETUP_FREQUENCY_DUAL_BAND_868_MHZ_2P4_GHZ:
+        SetupMetaData.Mode_allowed_mask &= 0b000110; // 31 Hz, 19 Hz — common to LR11xx on both bands
+        SetupMetaData.Tx_Diversity_allowed_mask = 0b00001; // diversity only (both chips active)
+        SetupMetaData.Rx_Diversity_allowed_mask = 0b00001;
         break;
     default:
         while(1){} // must not happen, should have been resolved in setup_sanitize()
@@ -648,6 +689,18 @@ void configure_mode(uint8_t mode, uint8_t frequencyband)
 #elif defined DEVICE_HAS_DUAL_SX126x_SX126x
         Config.Sx.LoraConfigIndex = SX126x_LORA_CONFIG_BW500_SF5_CR4_5;
         Config.Sx2.LoraConfigIndex = Config.Sx.LoraConfigIndex;
+#elif defined DEVICE_HAS_DUAL_LR11xx
+        if (frequencyband == SETUP_FREQUENCY_DUAL_BAND_915_MHZ_2P4_GHZ ||
+            frequencyband == SETUP_FREQUENCY_DUAL_BAND_868_MHZ_2P4_GHZ) {
+            Config.Sx.LoraConfigIndex = LR11xx_LORA_CONFIG_BW500_SF5_CR4_5;  // sx = sub-GHz
+            Config.Sx2.LoraConfigIndex = LR11xx_LORA_CONFIG_BW800_SF6_CR4_5; // sx2 = 2.4 GHz
+        } else if (frequencyband == SETUP_FREQUENCY_BAND_2P4_GHZ) {
+            Config.Sx.LoraConfigIndex = LR11xx_LORA_CONFIG_BW800_SF6_CR4_5;
+            Config.Sx2.LoraConfigIndex = Config.Sx.LoraConfigIndex;
+        } else {
+            Config.Sx.LoraConfigIndex = LR11xx_LORA_CONFIG_BW500_SF5_CR4_5;
+            Config.Sx2.LoraConfigIndex = Config.Sx.LoraConfigIndex;
+        }
 #elif defined DEVICE_HAS_SX128x
         Config.Sx.LoraConfigIndex = SX128x_LORA_CONFIG_BW800_SF6_CRLI4_5;
         Config.Sx2.LoraConfigIndex = Config.Sx.LoraConfigIndex;
@@ -683,6 +736,18 @@ void configure_mode(uint8_t mode, uint8_t frequencyband)
 #elif defined DEVICE_HAS_DUAL_SX126x_SX126x
         Config.Sx.LoraConfigIndex = SX126x_LORA_CONFIG_BW500_SF6_CR4_5;
         Config.Sx2.LoraConfigIndex = Config.Sx.LoraConfigIndex;
+#elif defined DEVICE_HAS_DUAL_LR11xx
+        if (frequencyband == SETUP_FREQUENCY_DUAL_BAND_915_MHZ_2P4_GHZ ||
+            frequencyband == SETUP_FREQUENCY_DUAL_BAND_868_MHZ_2P4_GHZ) {
+            Config.Sx.LoraConfigIndex = LR11xx_LORA_CONFIG_BW500_SF6_CR4_5;  // sx = sub-GHz
+            Config.Sx2.LoraConfigIndex = LR11xx_LORA_CONFIG_BW800_SF7_CR4_5; // sx2 = 2.4 GHz
+        } else if (frequencyband == SETUP_FREQUENCY_BAND_2P4_GHZ) {
+            Config.Sx.LoraConfigIndex = LR11xx_LORA_CONFIG_BW800_SF7_CR4_5;
+            Config.Sx2.LoraConfigIndex = Config.Sx.LoraConfigIndex;
+        } else {
+            Config.Sx.LoraConfigIndex = LR11xx_LORA_CONFIG_BW500_SF6_CR4_5;
+            Config.Sx2.LoraConfigIndex = Config.Sx.LoraConfigIndex;
+        }
 #elif defined DEVICE_HAS_SX128x
         Config.Sx.LoraConfigIndex = SX128x_LORA_CONFIG_BW800_SF7_CRLI4_5;
         Config.Sx2.LoraConfigIndex = Config.Sx.LoraConfigIndex;
@@ -743,6 +808,13 @@ void configure_mode(uint8_t mode, uint8_t frequencyband)
     Config.Sx2.FrequencyBand = SX_FHSS_FREQUENCY_BAND_2P4_GHZ;
 #elif defined DEVICE_HAS_DUAL_SX126x_SX126x
     Config.Sx2.FrequencyBand = SX_FHSS_FREQUENCY_BAND_433_MHZ;
+#elif defined DEVICE_HAS_DUAL_LR11xx
+    // when in dual-band mode, sx = sub-GHz (resolved by cvt_to_sx_fhss_frequency_band) and sx2 = 2.4 GHz.
+    // when single-band, both chips share the selected band (Config.Sx2 already copied above).
+    if (frequencyband == SETUP_FREQUENCY_DUAL_BAND_915_MHZ_2P4_GHZ ||
+        frequencyband == SETUP_FREQUENCY_DUAL_BAND_868_MHZ_2P4_GHZ) {
+        Config.Sx2.FrequencyBand = SX_FHSS_FREQUENCY_BAND_2P4_GHZ;
+    }
 #endif
 }
 
@@ -751,6 +823,7 @@ void configure_mode(uint8_t mode, uint8_t frequencyband)
 void configure_diversity(uint8_t diversity)
 {
 #if defined DEVICE_HAS_DUAL_SX126x_SX128x || defined DEVICE_HAS_DUAL_SX126x_SX126x || \
+    defined DEVICE_HAS_DUAL_LR11xx || \
     defined DEVICE_HAS_DIVERSITY || defined DEVICE_HAS_DIVERSITY_SINGLE_SPI
     switch (diversity) {
     case DIVERSITY_DEFAULT:
@@ -940,6 +1013,11 @@ void setup_configure_config(uint8_t config_id)
     Config.IsDualBand = true; // currently only dual band mode supported
     Config.Fhss2.FrequencyBand = SX_FHSS_FREQUENCY_BAND_433_MHZ;
     Config.Fhss2.Num = FHSS_NUM_433_MHZ;
+#elif defined DEVICE_HAS_DUAL_LR11xx
+    if (Config.IsDualBand) { // user picked a dual-band entry; keep single-band same on both chips otherwise
+        Config.Fhss2.FrequencyBand = SX_FHSS_FREQUENCY_BAND_2P4_GHZ;
+        Config.Fhss2.Num = fhss_num_list[Config.Fhss2.FrequencyBand][Config.Mode];
+    }
 #endif
 
     //-- More Config, may depend on above config settings

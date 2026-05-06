@@ -25,6 +25,8 @@
 #define DEVICE_HAS_IN
 #define DEVICE_HAS_NO_DEBUG
 #define DEVICE_HAS_DIVERSITY_SINGLE_SPI
+// Nomad has 2x LR1121 with band-capable RF front ends — enable simultaneous 2.4 GHz + sub-GHz operation
+#define DEVICE_HAS_DUAL_LR11xx
 #define DEVICE_HAS_SINGLE_LED_RGB
 #define DEVICE_HAS_SERIAL_OR_COM
 #define DEVICE_HAS_FAN_ONOFF

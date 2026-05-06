@@ -26,6 +26,9 @@
 
 #define DEVICE_HAS_OUT
 
+// XR4 has 2x LR1121 with band-capable RF front ends — enable simultaneous 2.4 GHz + sub-GHz operation
+#define DEVICE_HAS_DUAL_LR11xx
+
 
 //-- UARTS
 // UARTB = serial port

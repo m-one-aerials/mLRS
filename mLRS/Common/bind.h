@@ -169,7 +169,7 @@ void tBindBase::HopToNextBind(uint16_t frequency_band) // SETUP_FREQUENCY_BAND_E
 
     // not nice
     // for dualband receivers with two different SXes we need to swap active RF stage
-#if defined DEVICE_HAS_DUAL_SX126x_SX128x
+#if defined DEVICE_HAS_DUAL_SX126x_SX128x || defined DEVICE_HAS_DUAL_LR11xx
     if (frequency_band == SETUP_FREQUENCY_BAND_2P4_GHZ) {
         configure_diversity(DIVERSITY_ANTENNA2);
     } else {
