@@ -26,7 +26,8 @@
 #define BUZZER_TIM_IRQ_PRIORITY     14
 
 #include "../Common/common_conf.h"
-#include "../Common/common_types.h"
+#include "../Common/common_types.h" // includes setup_types.h
+#include "../Common/sx-drivers/sx12xx.h"
 
 #if defined ESP8266 || defined ESP32
 
@@ -106,7 +107,6 @@
 
 #endif //#if defined ESP8266 || defined ESP32
 
-#include "../Common/sx-drivers/sx12xx.h"
 #include "../Common/mavlink/fmav.h"
 #include "../Common/setup.h"
 #include "../Common/common.h"
@@ -1150,7 +1150,7 @@ IF_MBRIDGE(
         switch (mbtask) {
         case TXBRIDGE_SEND_LINK_STATS: mbridge_send_LinkStats(); break;
         case TXBRIDGE_SEND_CMD:
-            if (mbridge.CommandInFifo(&mbcmd)) mbridge_send_cmd(mbcmd);
+            if (mbridge.CommandInFifo(&mbcmd)) { mbridge_send_cmd(mbcmd); }
             break;
         }
     }
@@ -1201,18 +1201,16 @@ IF_CRSF(
     if (crsf.ChannelsUpdated(&rcData)) {
         rc_data_updated = true;
     }
-    uint8_t crsftask; uint8_t crsfcmd;
-    uint8_t mbcmd; static uint8_t do_cnt = 0; // if it's too fast Lua script gets out of sync
+    uint8_t crsftask; uint8_t crsfcmd; uint8_t mbcmd;
     uint8_t* buf; uint8_t len;
     if (crsf.TelemetryUpdate(&crsftask, Config.frame_rate_ms)) {
         switch (crsftask) {
-        case TXCRSF_SEND_LINK_STATISTICS: crsf.SendLinkStatistics(); do_cnt = 0; break;
+        case TXCRSF_SEND_LINK_STATISTICS: crsf.SendLinkStatistics(); break;
         case TXCRSF_SEND_LINK_STATISTICS_TX: crsf.SendLinkStatisticsTx(); break;
         case TXCRSF_SEND_LINK_STATISTICS_RX: crsf.SendLinkStatisticsRx(); break;
+        case TXCRSF_SEND_LINK_STATISTICS_ALL: crsf.SendLinkStatisticsAll(); break;
         case TXCRSF_SEND_TELEMETRY_FRAME:
-            if (!do_cnt && mbridge.CommandInFifo(&mbcmd)) {
-                mbridge_send_cmd(mbcmd);
-            }
+            if (mbridge.CommandInFifo(&mbcmd)) { mbridge_send_cmd(mbcmd); }
             if (mbridge.CrsfFrameAvailable(&buf, &len)) {
                 crsf.SendMBridgeFrame(buf, len);
             } else
@@ -1220,7 +1218,6 @@ IF_CRSF(
                 (SERIAL_LINK_MODE_IS_MAVLINK(Setup.Rx.SerialLinkMode) || SERIAL_LINK_MODE_IS_MSP(Setup.Rx.SerialLinkMode))) {
                 crsf.SendTelemetryFrame();
             }
-            INCc(do_cnt, 3);
             break;
         case TXCRSF_SEND_DEVICE_INFO: crsf.SendDeviceInfo(); break;
         }
