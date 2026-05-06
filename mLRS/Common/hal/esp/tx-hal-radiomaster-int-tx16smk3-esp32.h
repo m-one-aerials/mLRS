@@ -32,6 +32,8 @@
 #define DEVICE_HAS_NO_COM
 #define DEVICE_HAS_NO_DEBUG
 #define DEVICE_HAS_DIVERSITY_SINGLE_SPI
+// TX16S MK3 has 2x LR1121 with band-capable RF front ends — enable simultaneous 2.4 GHz + sub-GHz operation
+#define DEVICE_HAS_DUAL_LR11xx
 #define DEVICE_HAS_SINGLE_LED_RGB
 #define DEVICE_HAS_FAN_ONOFF
 #define DEVICE_HAS_ESP_WIFI_BRIDGE_ON_SERIAL
