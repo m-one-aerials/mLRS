@@ -37,10 +37,14 @@
 
 #include <stdlib.h>
 #include <ctype.h>
+#include "../Common/hal/hal.h"
 
 
 #if defined DEVICE_HAS_ESP_WIFI_BRIDGE_ON_SERIAL && defined USE_COM_ON_SERIAL
-  #error ESP: ESP wireless bridge is on serial but board has serial/com !
+  #error ESP: ESP wireless bridge is on serial but board has serial or com !
+#endif
+#if defined DEVICE_HAS_ESP_WIFI_BRIDGE_ON_SERIAL && defined DEVICE_HAS_ESP_WIFI_BRIDGE_W_PASSTHRU_VIA_SERIAL
+  #error ESP: ESP wireless bridge is on serial but board has com on serial !
 #endif
 
 
@@ -187,16 +191,15 @@ void tTxEspWifiBridge::Init(
 
     com = _comport;
     ser = nullptr;
-    if (tx_setup->SerialDestination == SERIAL_DESTINATION_SERIAL) {
+#ifdef DEVICE_HAS_ESP_WIFI_BRIDGE_W_PASSTHRU_VIA_SERIAL
+    com = _serialport;
+#endif
 #ifdef DEVICE_HAS_ESP_WIFI_BRIDGE_ON_SERIAL
-        ser = _serialport;
+    ser = _serialport;
 #endif
-    } else
-    if (tx_setup->SerialDestination == SERIAL_DESTINATION_SERIAL2) {
 #ifdef DEVICE_HAS_ESP_WIFI_BRIDGE_ON_SERIAL2
-        ser = _serial2port;
+    ser = _serial2port;
 #endif
-    }
     ser_baud = _serial_baudrate;
 
     passthrough = (com != nullptr && ser != nullptr); // we need both for passthrough
@@ -290,7 +293,7 @@ void tTxEspWifiBridge::passthrough_do_flashing(void)
 
     uint32_t baudrate = 115200; // Note: this is what is used for flashing, can be different to ESP_CONFIGURE setting
     ser->SetBaudRate(baudrate);
-    com->SetBaudRate(baudrate); // Standard tools should specify 115200 to avoid baudrate change
+    com->SetBaudRate(baudrate); // standard tools should specify 115200 to avoid baudrate change
     ser->flush();
     com->flush();
 
@@ -391,7 +394,7 @@ void tTxEspWifiBridge::passthrough_do(void)
     uint32_t baudrate = 115200; // Note: this is what is used for flashing, can be different to ESP_CONFIGURE setting
     ser->SetBaudRate(baudrate);
 #if defined DEVICE_HAS_ESP_WIFI_BRIDGE_ON_SERIAL2 && defined USE_COM_ON_SERIAL
-    ser_or_com_set_to_com();
+    com = ser_or_com_set_to_com(); // also re-fetch, ser_or_com_set_to_com() reassigned comport pointer
 #endif
     ser->flush();
     com->flush();

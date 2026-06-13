@@ -13,6 +13,7 @@
 
 #include <stdlib.h>
 #include <ctype.h>
+#include "../Common/hal/hal.h"
 
 
 #if defined DEVICE_HAS_HC04_MODULE_ON_SERIAL && defined USE_COM_ON_SERIAL
@@ -29,7 +30,7 @@
 class tTxHc04Bridge
 {
   public:
-    void Init(tSerialBase* const _comport, tSerialBase* const _serialport, uint32_t const _serial_baudrate) {}
+    void Init(tSerialBase* const _comport, tSerialBase* const _serialport, tSerialBase* const _serial2port, uint32_t const _serial_baudrate) {}
 
     void EnterPassthrough(void) {}
     void GetPin(void) {}
@@ -46,7 +47,7 @@ extern tTxDisp disp;
 class tTxHc04Bridge
 {
   public:
-    void Init(tSerialBase* const _comport, tSerialBase* const _serialport, uint32_t const _serial_baudrate);
+    void Init(tSerialBase* const _comport, tSerialBase* const _serialport, tSerialBase* const _serial2port, uint32_t const _serial_baudrate);
 
     void EnterPassthrough(void);
     void GetPin(void);
@@ -65,10 +66,14 @@ class tTxHc04Bridge
 };
 
 
-void tTxHc04Bridge::Init(tSerialBase* const _comport, tSerialBase* const _serialport, uint32_t const _serial_baudrate)
+void tTxHc04Bridge::Init(tSerialBase* const _comport, tSerialBase* const _serialport, tSerialBase* const _serial2port, uint32_t const _serial_baudrate)
 {
     com = _comport;
+#ifdef DEVICE_HAS_HC04_MODULE_ON_SERIAL2
+    ser = _serial2port;
+#else
     ser = _serialport;
+#endif
     ser_baud = _serial_baudrate;
 
     run_autoconfigure();
@@ -120,7 +125,9 @@ uint8_t len;
         delay_ms(1500);
         s[len-2] = '\0';
         com->puts((char*)s);
-    } else com->puts("set pin failed");
+    } else {
+        com->puts("set pin failed");
+    }
 }
 
 
@@ -129,7 +136,7 @@ void tTxHc04Bridge::passthrough_do(void)
     ser->SetBaudRate(ser_baud);
     ser->flush();
 #if defined DEVICE_HAS_HC04_MODULE_ON_SERIAL2 && defined USE_COM_ON_SERIAL
-    ser_or_com_set_to_com();
+    com = ser_or_com_set_to_com(); // also re-fetch, ser_or_com_set_to_com() reassigned comport pointer
 #endif
 
     leds.InitPassthrough();

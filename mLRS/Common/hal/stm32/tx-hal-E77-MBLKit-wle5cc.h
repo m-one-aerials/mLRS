@@ -306,8 +306,6 @@ void led_red_toggle(void) { gpio_toggle(LED_RED); }
 
 #define BOOT_BUTTON               IO_PA1
 
-extern "C" { void delay_ms(uint16_t ms); }
-
 void systembootloader_init(void)
 {
     gpio_init(BOOT_BUTTON, IO_MODE_INPUT_PU, IO_SPEED_DEFAULT);
@@ -328,21 +326,14 @@ void systembootloader_init(void)
 // use com if BUTTON is pressed during power up, else use serial
 // BUTTON becomes bind button later on
 
-bool e77mblkit_ser_or_com_serial = true; // we use serial as default
-
-void ser_or_com_init(void)
+bool ser_or_com_init(void) // return true if is_serial
 {
     gpio_init(BUTTON, IO_MODE_INPUT_PU, IO_SPEED_DEFAULT);
     uint8_t cnt = 0;
     for (uint8_t i = 0; i < 16; i++) {
         if (gpio_read_activelow(BUTTON)) cnt++;
     }
-    e77mblkit_ser_or_com_serial = !(cnt > 8);
-}
-
-bool ser_or_com_serial(void)
-{
-    return e77mblkit_ser_or_com_serial;
+    return !(cnt > 8);
 }
 
 

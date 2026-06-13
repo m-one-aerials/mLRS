@@ -15,7 +15,7 @@
 // 2x LR1121 — enable simultaneous 2.4 GHz + sub-GHz operation. Inherited by every RX HAL that includes this file (e.g. XR4).
 #define DEVICE_HAS_DUAL_LR11xx
 #define DEVICE_HAS_NO_DEBUG
-//#define DEVICE_HAS_SERIAL_OR_DEBUG
+//#define DEVICE_HAS_NO_SERIAL
 
 
 //-- UARTS
