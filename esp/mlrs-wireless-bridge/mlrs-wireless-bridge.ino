@@ -197,6 +197,10 @@ String ble_device_name = ""; // name of your BLE device as it will be seen by yo
   #define USE_AT_MODE
 #endif
 
+#if defined USE_AT_MODE && !defined ESP8266
+  #define USE_WEBUI
+#endif
+
 #if defined USE_AT_MODE || (WIRELESS_PROTOCOL == 0)
     #define USE_WIRELESS_PROTOCOL_TCP
 #endif
@@ -477,10 +481,17 @@ typedef enum {
     WIFIPOWER_MAX,
 } WIFIPOWER_ENUM;
 
+typedef enum {
+    WIFIMODE_AP_OPEN = 0,
+    WIFIMODE_AP_PASSWORD = 1,
+    WIFIMODE_CLIENT = 2,
+} WIFIMODE_ENUM;
+
 #define PROTOCOL_DEFAULT  WIRELESS_PROTOCOL
 #define BAUDRATE_DEFAULT  BAUD_RATE
 #define WIFICHANNEL_DEFAULT  WIFI_CHANNEL
 #define WIFIPOWER_DEFAULT  WIFIPOWER_MED
+#define WIFIMODE_DEFAULT  WIFIMODE_AP_OPEN
 
 #define G_PROTOCOL_STR  "protocol"
 int g_protocol = PROTOCOL_DEFAULT;
@@ -496,6 +507,14 @@ String g_bindphrase = "mlrs.0";
 String g_password = "";
 #define G_NETWORK_SSID_STR  "network_ssid"
 String g_network_ssid = "";
+#define G_NETWORK_PASSWORD_STR  "network_pw"
+String g_network_password = "";
+#define G_WIFIMODE_STR  "wifimode"
+int g_wifi_mode = WIFIMODE_DEFAULT;
+#define G_TCPPORT_STR  "tcpport"
+int g_tcp_port = port_tcp;
+#define G_UDPPORT_STR  "udpport"
+int g_udp_port = port_udp;
 
 uint16_t device_id = 0; // is going to be set by setup_device_name_and_password(), and can be queried in at mode
 String device_name = "";
@@ -507,6 +526,10 @@ String device_password = "";
 Preferences preferences;
 #include "mlrs-wireless-bridge-at-mode.h"
 AtMode at_mode;
+#endif
+
+#ifdef USE_WEBUI
+#include "mlrs-wireless-bridge-webui.h"
 #endif
 
 bool led_state;
@@ -696,6 +719,26 @@ class tWifiHandler {
         }
     }
 
+    void setup_link_identity(String ap_suffix) {
+        if (g_wifi_mode == WIFIMODE_CLIENT) {
+            device_name = (g_network_ssid != "") ? g_network_ssid : device_name_STAUDP;
+            device_password = g_network_password;
+        } else {
+            device_name = (ssid != "") ? ssid : (device_name + ap_suffix);
+            device_password = (g_wifi_mode == WIFIMODE_AP_PASSWORD) ? g_password : "";
+        }
+    }
+
+    bool wifi_link_setup(IPAddress ap_ip) {
+        if (g_wifi_mode == WIFIMODE_CLIENT) {
+            bool res = setup_sta_mode_nonblocking((_setup_state == 0), false, IPAddress());
+            set_wifi_setup_trying();
+            return res;
+        }
+        setup_ap_mode(ap_ip);
+        return true;
+    }
+
     void set_connected() {
         is_connected = true;
         is_connected_tlast_ms = millis();
@@ -744,17 +787,17 @@ tWifiHandler* wifi_handler;
 
 class tTCPHandler : public tWifiHandler {
   public:
-    void Init(IPAddress __ip) {
+    void Init(IPAddress __ip, int __port) {
         tWifiHandler::Init();
-        device_name = (ssid != "") ? ssid : device_name + " AP TCP";
-        set_device_password(password, "");
+        setup_link_identity(" AP TCP");
         _ip = __ip;
+        _port = __port;
     }
 
     void wifi_setup() override {
-        setup_ap_mode(_ip); // AP mode
+        if (!wifi_link_setup(_ip)) return;
         setup_wifipower();
-        server.begin();
+        server.begin(_port);
         server.setNoDelay(true);
         set_wifi_setup_done();
     }
@@ -806,18 +849,17 @@ class tUDPHandler : public tWifiHandler, tClientList {
     void Init(IPAddress __ip, int __port) {
         tWifiHandler::Init();
         tClientList::Init();
-        device_name = (ssid != "") ? ssid : device_name + " AP UDP";
-        set_device_password(password, "");
-        _ip = _ip_ap = __ip; 
-        //_ip = WiFi.broadcastIP(); // seems to not work for AP mode
+        setup_link_identity(" AP UDP");
+        _ip = _ip_ap = __ip;
         _ip[3] = 255; // start with broadcast, the subnet mask is 255.255.255.0 so just last octet needs to change
         _port = __port;
 
     }
 
     void wifi_setup() override {
-        setup_ap_mode(_ip_ap); // AP mode
+        if (!wifi_link_setup(_ip_ap)) return;
         setup_wifipower();
+        if (g_wifi_mode == WIFIMODE_CLIENT) _ip = WiFi.broadcastIP();
         udp.begin(_port);
         set_wifi_setup_done();
     }
@@ -1131,15 +1173,34 @@ void setup()
 
     g_password = preferences.getString(G_PASSWORD_STR, ""); // "" is the default password
     g_network_ssid = preferences.getString(G_NETWORK_SSID_STR, ""); // "" is the default network ssid
+    g_network_password = preferences.getString(G_NETWORK_PASSWORD_STR, "");
+
+    g_wifi_mode = preferences.getInt(G_WIFIMODE_STR, 255);
+    if (g_wifi_mode < WIFIMODE_AP_OPEN || g_wifi_mode > WIFIMODE_CLIENT) {
+        g_wifi_mode = WIFIMODE_DEFAULT;
+        preferences.putInt(G_WIFIMODE_STR, g_wifi_mode);
+    }
+
+    g_tcp_port = preferences.getInt(G_TCPPORT_STR, 0);
+    if (g_tcp_port < 1 || g_tcp_port > 65535) {
+        g_tcp_port = port_tcp;
+        preferences.putInt(G_TCPPORT_STR, g_tcp_port);
+    }
+
+    g_udp_port = preferences.getInt(G_UDPPORT_STR, 0);
+    if (g_udp_port < 1 || g_udp_port > 65535) {
+        g_udp_port = port_udp;
+        preferences.putInt(G_UDPPORT_STR, g_udp_port);
+    }
 #endif
 
     // Wifi handler
     switch (g_protocol) {
 #ifdef USE_WIRELESS_PROTOCOL_TCP
-        case WIRELESS_PROTOCOL_TCP: tcp_handler.Init(ip); wifi_handler = &tcp_handler; break;
+        case WIRELESS_PROTOCOL_TCP: tcp_handler.Init(ip, g_tcp_port); wifi_handler = &tcp_handler; break;
 #endif
 #ifdef USE_WIRELESS_PROTOCOL_UDP
-        case WIRELESS_PROTOCOL_UDP: udp_handler.Init(ip, port_udp); wifi_handler = &udp_handler; break;
+        case WIRELESS_PROTOCOL_UDP: udp_handler.Init(ip, g_udp_port); wifi_handler = &udp_handler; break;
 #endif
 #ifdef USE_WIRELESS_PROTOCOL_UDPSTA
         case WIRELESS_PROTOCOL_UDPSTA: udpsta_handler.Init(port_udp); wifi_handler = &udpsta_handler; break;
@@ -1220,6 +1281,11 @@ void loop()
     if (!wifi_handler->Setup()) {
         return;
     }
+
+#ifdef USE_WEBUI
+    if (!webui_started) { webui_setup(); webui_started = true; }
+    webui_loop();
+#endif
 
     wifi_handler->Loop(buf, sizeof(buf));
 
