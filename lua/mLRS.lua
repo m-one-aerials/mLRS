@@ -1021,8 +1021,9 @@ local function drawPageEdit(page_str)
     CURSOR.param_cnt = 0
     for pidx = 2, #DEVICE_PARAM_LIST do
         local p = DEVICE_PARAM_LIST[pidx]
-        if p ~= nil and string.sub(p.name,1,2) == page_str and p.allowed_mask > 0 then
-        local name = string.sub(p.name, 4)
+        local is_dynpower = (page_str == "Tx" and p ~= nil and p.name == "Dyn Power")
+        if p ~= nil and (string.sub(p.name,1,2) == page_str or is_dynpower) and p.allowed_mask > 0 then
+        local name = is_dynpower and p.name or string.sub(p.name, 4)
 
         if idx >= CURSOR.top_idx and idx < CURSOR.top_idx + LAYOUT.page_N then
             local shifted_idx = idx - CURSOR.top_idx
